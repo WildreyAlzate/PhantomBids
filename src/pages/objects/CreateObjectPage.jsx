@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FiPlusCircle, FiDollarSign, FiClock, FiAlertTriangle, FiImage, FiShield } from "react-icons/fi";
 import { GiCrystalBall, GiSkullCrossedBones, GiGhost, GiBurningBook } from "react-icons/gi";
+import axios from "axios"; // Asegúrate de tener axios instalado
 
 const CURSE_TYPES = [
   { id: "spectral", name: "Aparición Espectral", icon: GiGhost, color: "border-purple-500/50 text-purple-400 bg-purple-950/30" },
@@ -19,13 +20,35 @@ export function CreateObjectPage() {
     imageUrl: "",
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(`Objeto "${formData.title}" registrado correctamente en el relicario.`);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Tomamos la URL del backend desde las variables de entorno de Vite
+      const API_URL = import.meta.env.VITE_API_URL || "https://phantombids-back.onrender.com"; // Ajusta tu URL base si es necesario
+      
+      // Realizamos la petición POST al backend (incluyendo credenciales/token si manejas autenticación con cookies o headers)
+      const response = await axios.post(`${API_URL}/api/objects`, formData, {
+        withCredentials: true, // Si usas cookies de sesión
+      });
+
+      alert(`¡Objeto "${formData.title}" sellado y publicado con éxito!`);
+      // Opcional: limpiar formulario o redirigir
+    } catch (err) {
+      console.error("Error al publicar el objeto:", err);
+      setError(err.response?.data?.message || "Hubo un error al conectar con el submundo (backend).");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,6 +62,14 @@ export function CreateObjectPage() {
           Ingresa los detalles espectrales y la categoría de peligro para iniciar la subasta.
         </p>
       </div>
+
+      {/* Mostrar error si la API falla */}
+      {error && (
+        <div className="bg-rose-950/50 border border-rose-800 text-rose-300 p-4 rounded-xl text-sm flex items-center gap-2">
+          <FiAlertTriangle className="text-lg shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulario Principal */}
@@ -167,9 +198,10 @@ export function CreateObjectPage() {
 
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2"
+            disabled={loading}
+            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <FiShield className="text-lg" /> Sellar y Publicar Objeto
+            <FiShield className="text-lg" /> {loading ? "Sellando en el servidor..." : "Sellar y Publicar Objeto"}
           </button>
         </form>
 
