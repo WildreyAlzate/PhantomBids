@@ -1,31 +1,99 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiPlusCircle, FiDollarSign, FiClock, FiAlertTriangle, FiImage, FiShield } from "react-icons/fi";
-import { GiCrystalBall, GiSkullCrossedBones, GiGhost, GiBurningBook } from "react-icons/gi";
+import { GiCrystalBall } from "react-icons/gi";
+import axios from "axios"; // Asegúrate de tener axios o usa tu instancia de api personalizada
 
-const CURSE_TYPES = [
-  { id: "spectral", name: "Aparición Espectral", icon: GiGhost, color: "border-purple-500/50 text-purple-400 bg-purple-950/30" },
-  { id: "mind", name: "Corrupción Mental", icon: GiBurningBook, color: "border-indigo-500/50 text-indigo-400 bg-indigo-950/30" },
-  { id: "lethal", name: "Maldición Letal", icon: GiSkullCrossedBones, color: "border-rose-500/50 text-rose-400 bg-rose-950/30" },
+const PREDEFINED_CURSES = [
+  { id: "LOSE_10_REP", name: "Perder 10 Reputación" },
+  { id: "BAN_NEXT_2_AUCTIONS", name: "Prohibido en próximas 2 subastas" },
+  { id: "CURSE_MARK_7_DAYS", name: "Marca de Maldición (7 días)" },
+  { id: "REDUCE_BET_LIMIT", name: "Reducir Límite de Apuesta" },
+  { id: "POLTERGEIST_24H", name: "Convertir en Poltergeist (24h)" },
+  { id: "PUBLIC_SHAME_ROLE", name: "Rol de Vergüenza Pública" },
+  { id: "REPUTATION_DRAIN_PER_DAY", name: "Drenaje Diario de Reputación" },
+  { id: "SILENCE_IN_HOUSE", name: "Silencio en la Casa" },
 ];
 
 export function CreateObjectPage() {
+  const [houses, setHouses] = useState([]);
   const [formData, setFormData] = useState({
-    title: "",
+    name: "",
     description: "",
-    startingBid: "",
-    durationHours: "24",
-    curseType: "spectral",
-    dangerLevel: "Alto",
     imageUrl: "",
+    baseCurse: "LOSE_10_REP",
+    minBid: 1,
+    maxBid: 50,
+    durationDays: 1,
+    house: "", // ID de la casa a la que pertenecerá
   });
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  // Cargar las casas disponibles para poder seleccionar una
+  useEffect(() => {
+    const fetchHouses = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/houses`);
+        const houseData = Array.isArray(res.data) ? res.data : res.data.houses || [];
+        setHouses(houseData);
+        if (houseData.length > 0) {
+          setFormData((prev) => ({ ...prev, house: houseData[0]._id }));
+        }
+      } catch (err) {
+        console.error("Error al cargar casas:", err);
+      }
+    };
+    fetchHouses();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(`Objeto "${formData.title}" registrado correctamente en el relicario.`);
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        imageUrl: formData.imageUrl,
+        baseCurse: formData.baseCurse,
+        minBid: Number(formData.minBid),
+        maxBid: Number(formData.maxBid),
+        durationDays: Number(formData.durationDays),
+        house: formData.house,
+      };
+
+      const token = localStorage.getItem("token");
+      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/cursed-objects`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setMessage({ type: "success", text: `Objeto "${formData.name}" publicado exitosamente.` });
+      setFormData({
+        name: "",
+        description: "",
+        imageUrl: "",
+        baseCurse: "LOSE_10_REP",
+        minBid: 1,
+        maxBid: 50,
+        durationDays: 1,
+        house: houses[0]?._id || "",
+      });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Error al registrar el objeto embrujado.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,107 +101,117 @@ export function CreateObjectPage() {
       {/* Header */}
       <div className="border-b border-slate-800 pb-6">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-indigo-300 bg-clip-text text-transparent flex items-center gap-3">
-          <FiPlusCircle className="text-purple-400 text-3xl" /> Publicar Relicario / Objeto Maldito
+          <FiPlusCircle className="text-purple-400 text-3xl" /> Publicar Objeto Embrujado
         </h1>
         <p className="text-slate-400 text-sm mt-1">
-          Ingresa los detalles espectrales y la categoría de peligro para iniciar la subasta.
+          Ingresa los detalles espectrales y asígnalo a una casa de subastas.
         </p>
       </div>
+
+      {message && (
+        <div
+          className={`p-4 rounded-xl text-sm ${
+            message.type === "success" ? "bg-green-950/80 text-green-300 border border-green-800" : "bg-red-950/80 text-red-300 border border-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulario Principal */}
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-          {/* Título */}
+          {/* Casa de Subastas */}
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Casa de Subastas Destino</label>
+            <select
+              name="house"
+              value={formData.house}
+              onChange={handleChange}
+              required
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+            >
+              {houses.length === 0 && <option value="">Cargando casas o no hay casas creadas...</option>}
+              {houses.map((h) => (
+                <option key={h._id} value={h._id}>
+                  {h.name} ({h.theme})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Nombre */}
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Nombre del Objeto</label>
             <input
               type="text"
-              name="title"
+              name="name"
               required
               placeholder="Ej. Amuleto del Ojo Sangriento"
-              value={formData.title}
+              value={formData.name}
               onChange={handleChange}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500"
             />
           </div>
 
-          {/* Selector de Tipo de Maldición Predefinida */}
+          {/* Maldición Predefinida */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Naturaleza de la Maldición</label>
-            <div className="grid grid-cols-3 gap-3">
-              {CURSE_TYPES.map((curse) => {
-                const Icon = curse.icon;
-                const isSelected = formData.curseType === curse.id;
-                return (
-                  <button
-                    type="button"
-                    key={curse.id}
-                    onClick={() => setFormData({ ...formData, curseType: curse.id })}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 text-center transition-all ${
-                      isSelected
-                        ? "border-purple-500 bg-purple-950/60 shadow-lg shadow-purple-950/50"
-                        : "border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-400"
-                    }`}
-                  >
-                    <Icon className={`text-2xl ${isSelected ? "text-purple-400" : "text-slate-500"}`} />
-                    <span className="text-xs font-medium">{curse.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Precios y Tiempos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Oferta Inicial (USD)</label>
-              <div className="relative">
-                <FiDollarSign className="absolute left-3 top-3 text-slate-500" />
-                <input
-                  type="number"
-                  name="startingBid"
-                  required
-                  placeholder="150"
-                  value={formData.startingBid}
-                  onChange={handleChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Duración de Subasta</label>
-              <div className="relative">
-                <FiClock className="absolute left-3 top-3 text-slate-500" />
-                <select
-                  name="durationHours"
-                  value={formData.durationHours}
-                  onChange={handleChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
-                >
-                  <option value="12">12 Horas</option>
-                  <option value="24">24 Horas</option>
-                  <option value="48">48 Horas</option>
-                  <option value="72">72 Horas</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Nivel de Peligro */}
-          <div>
-            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Nivel de Severidad Espectral</label>
+            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Maldición Base</label>
             <select
-              name="dangerLevel"
-              value={formData.dangerLevel}
+              name="baseCurse"
+              value={formData.baseCurse}
               onChange={handleChange}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
             >
-              <option value="Bajo">Bajo (Manipulación Leve)</option>
-              <option value="Medio">Medio (Manifestación Física)</option>
-              <option value="Alto">Alto (Posesión / Inestabilidad)</option>
-              <option value="Extremo">Extremo (Peligro Letal)</option>
+              {PREDEFINED_CURSES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
+          </div>
+
+          {/* Rango de Pujas y Duración */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Puja Mín (1-100)</label>
+              <input
+                type="number"
+                name="minBid"
+                min="1"
+                max="100"
+                required
+                value={formData.minBid}
+                onChange={handleChange}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Puja Máxima</label>
+              <input
+                type="number"
+                name="maxBid"
+                required
+                value={formData.maxBid}
+                onChange={handleChange}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Duración (Días 1-7)</label>
+              <input
+                type="number"
+                name="durationDays"
+                min="1"
+                max="7"
+                required
+                value={formData.durationDays}
+                onChange={handleChange}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
 
           {/* URL Imagen */}
@@ -144,6 +222,7 @@ export function CreateObjectPage() {
               <input
                 type="url"
                 name="imageUrl"
+                required
                 placeholder="https://..."
                 value={formData.imageUrl}
                 onChange={handleChange}
@@ -154,11 +233,12 @@ export function CreateObjectPage() {
 
           {/* Descripción */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Origen / Historia de la Maldición</label>
+            <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Historia / Descripción</label>
             <textarea
               name="description"
               rows="3"
-              placeholder="Describe la procedencia del artefacto y sus efectos documentados..."
+              required
+              placeholder="Describe la procedencia del artefacto..."
               value={formData.description}
               onChange={handleChange}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500"
@@ -167,16 +247,17 @@ export function CreateObjectPage() {
 
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2"
+            disabled={loading}
+            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <FiShield className="text-lg" /> Sellar y Publicar Objeto
+            <FiShield className="text-lg" /> {loading ? "Guardando..." : "Sellar y Publicar Objeto"}
           </button>
         </form>
 
-        {/* Tarjeta de Previsualización */}
+        {/* Previsualización */}
         <div className="space-y-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            <GiCrystalBall className="text-purple-400" /> Vista Previa de la Ficha
+            <GiCrystalBall className="text-purple-400" /> Vista Previa
           </h3>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-4 space-y-4 shadow-xl">
@@ -189,13 +270,10 @@ export function CreateObjectPage() {
                   <p className="text-xs">Sin imagen asignada</p>
                 </div>
               )}
-              <span className="absolute top-2 right-2 bg-rose-950/90 text-rose-300 border border-rose-800/60 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <FiAlertTriangle /> {formData.dangerLevel}
-              </span>
             </div>
 
             <div>
-              <h4 className="font-bold text-slate-100">{formData.title || "Nombre del Objeto"}</h4>
+              <h4 className="font-bold text-slate-100">{formData.name || "Nombre del Objeto"}</h4>
               <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                 {formData.description || "La historia del objeto aparecerá aquí..."}
               </p>
@@ -203,12 +281,12 @@ export function CreateObjectPage() {
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs">
               <div>
-                <span className="text-slate-500 text-[10px] uppercase block">Base</span>
-                <span className="font-bold text-purple-300">${formData.startingBid || "0"} USD</span>
+                <span className="text-slate-500 text-[10px] uppercase block">Rango Pujas</span>
+                <span className="font-bold text-purple-300">${formData.minBid} - ${formData.maxBid}</span>
               </div>
               <div>
-                <span className="text-slate-500 text-[10px] uppercase block">Tiempo</span>
-                <span className="font-bold text-slate-300">{formData.durationHours} Horas</span>
+                <span className="text-slate-500 text-[10px] uppercase block">Duración</span>
+                <span className="font-bold text-slate-300">{formData.durationDays} Día(s)</span>
               </div>
             </div>
           </div>
