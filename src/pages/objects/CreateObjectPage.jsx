@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { FiPlusCircle, FiDollarSign, FiClock, FiAlertTriangle, FiImage, FiShield } from "react-icons/fi";
 import { GiCrystalBall } from "react-icons/gi";
-import axios from "axios"; // Asegúrate de tener axios o usa tu instancia de api personalizada
+import axios from "axios";
+
+// Definimos la URL base asegurando que apunte a Render si VITE_API_URL no está configurada
+const API_URL = import.meta.env.VITE_API_URL || "https://phantombids-back-3aod.onrender.com";
 
 const PREDEFINED_CURSES = [
   { id: "LOSE_10_REP", name: "Perder 10 Reputación" },
@@ -34,7 +37,7 @@ export function CreateObjectPage() {
   useEffect(() => {
     const fetchHouses = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/houses`);
+        const res = await axios.get(`${API_URL}/api/houses`);
         const houseData = Array.isArray(res.data) ? res.data : res.data.houses || [];
         setHouses(houseData);
         if (houseData.length > 0) {
@@ -69,7 +72,7 @@ export function CreateObjectPage() {
       };
 
       const token = localStorage.getItem("token");
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/cursed-objects`, payload, {
+      await axios.post(`${API_URL}/api/cursed-objects`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
