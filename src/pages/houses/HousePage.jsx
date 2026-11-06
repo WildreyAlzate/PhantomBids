@@ -35,20 +35,29 @@ export function HousesPage() {
     (house.theme && house.theme.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleEnterHouse = async (house) => {
+ const handleEnterHouse = async (house) => {
     if (house.isPrivate) {
       try {
         const token = localStorage.getItem("token");
+        
+        if (!token) {
+          alert("Debes iniciar sesión para intentar acceder a una casa privada.");
+          return;
+        }
+
+        // Consultamos al backend enviando el token
         await axios.get(`${API_URL}/api/houses/${house._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        // Si el backend responde OK (200), navega a la casa
+
+        // Si la llamada responde bien (es Admin o Miembro), permitimos el paso
         navigate(`/auction/${house._id}`);
       } catch (err) {
-        // Si el backend devuelve 403 o error, bloquea el paso
-        alert("Acceso denegado: Esta casa es privada y requiere membresía o código de invitación.");
+        // Si responde 403 Forbidden u otro error, mostramos el mensaje de bloqueo
+        alert(err.response?.data?.message || "Acceso denegado: Solo el Administrador o miembros pueden ingresar a esta casa privada.");
       }
     } else {
+      // Las casas públicas se pueden ingresar libremente
       navigate(`/auction/${house._id}`);
     }
   };
@@ -131,13 +140,13 @@ export function HousesPage() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => handleEnterHouse(house)}
-                  className="w-full bg-purple-950/80 hover:bg-purple-900 border border-purple-800/50 hover:border-purple-600 text-purple-300 font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm group-hover:shadow-md group-hover:shadow-purple-950/50 cursor-pointer"
-                >
-                  <span>Ingresar al Recinto</span>
-                  <FiTrendingUp className="text-xs group-hover:translate-x-1 transition-transform" />
-                </button>
+              <button 
+  onClick={() => handleEnterHouse(house)}
+  className="w-full bg-purple-950/80 hover:bg-purple-900 border border-purple-800/50 hover:border-purple-600 text-purple-300 font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm group-hover:shadow-md group-hover:shadow-purple-950/50 cursor-pointer"
+>
+  <span>Ingresar al Recinto</span>
+  <FiTrendingUp className="text-xs group-hover:translate-x-1 transition-transform" />
+</button>
               </div>
             </div>
           ))}
