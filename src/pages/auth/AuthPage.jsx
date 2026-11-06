@@ -4,6 +4,10 @@ import { Input } from "../../components/ui/Input";
 import { FiMail, FiLock, FiUser, FiShield } from "react-icons/fi";
 import { GiGhost } from "react-icons/gi";
 import { useAuth } from "../../context/AuthContext";
+import axios from "axios";
+
+// Definimos la URL base asegurando que apunte a Render si VITE_API_URL no está configurada
+const API_URL = import.meta.env.VITE_API_URL || "https://phantombids-back-3aod.onrender.com";
 
 export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,10 +19,10 @@ export function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const { login } = useAuth();
+  const { login: authLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validaciones básicas de campos vacíos
@@ -29,15 +33,49 @@ export function AuthPage() {
 
     setError("");
 
-    // Consumimos el contexto global de autenticación
-    login({
-      alias: isLogin ? email.split("@")[0] : alias,
-      email: email,
-      role: "user",
-    });
+    try {
+      if (isLogin) {
+        // Petición real al endpoint de Login del backend
+        const res = await axios.post(`${API_URL}/api/auth/login`, {
+          email,
+          password,
+        });
 
-    // Redirigir a las casas de subasta tras iniciar/registrar sesión
-    navigate("/houses");
+        // Guardamos el token real que devuelve el servidor en el localStorage
+        const token = res.data.token || res.data.accessToken;
+        if (token) {
+          localStorage.setItem("token", token);
+        }
+
+        // Si tu contexto también maneja el estado de usuario
+        authLogin(res.data.user || { email, role: "user" });
+
+      } else {
+        // Petición real al endpoint de Registro del backend
+        const res = await axios.post(`${API_URL}/api/auth/register`, {
+          alias,
+          email,
+          password,
+        });
+
+        // Si el registro devuelve token automáticamente, lo guardamos
+        const token = res.data.token || res.data.accessToken;
+        if (token) {
+          localStorage.setItem("token", token);
+        }
+
+        authLogin(res.data.user || { alias, email, role: "user" });
+      }
+
+      // Redirigir a las casas de subasta tras iniciar/registrar sesión con éxito
+      navigate("/houses");
+    } catch (err) {
+      console.error("Error en autenticación:", err);
+      setError(
+        err.response?.data?.message || 
+        "Error al conectar con el servidor espectral. Verifica tus credenciales."
+      );
+    }
   };
 
   return (
