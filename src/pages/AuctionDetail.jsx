@@ -1,17 +1,72 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { FiMinus, FiPlus, FiLock } from 'react-icons/fi';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { BettingWidget } from '../components/BettingWidget';
 import { AlertBanner } from '../components/AlertBanner';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://phantombids-back-3aod.onrender.com';
+
 export const AuctionDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
   const minBid = 10;
   const maxBid = 500;
   const [bidAmount, setBidAmount] = useState(minBid);
   const [showPenalty, setShowPenalty] = useState(false);
 
+  // Validación de acceso al cargar la vista directamente por URL
+  useEffect(() => {
+    const checkAccess = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Debes iniciar sesión para acceder a esta subasta.');
+        navigate('/houses');
+        return;
+      }
+
+      try {
+        // Consultamos la casa al backend enviando el token
+        await axios.get(`${API_URL}/api/houses/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAuthorized(true);
+      } catch (err) {
+        alert(
+          err.response?.data?.message ||
+            'Acceso denegado: No tienes permisos para ingresar a este recinto privado.'
+        );
+        navigate('/houses');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      checkAccess();
+    } else {
+      setLoading(false);
+      setAuthorized(true);
+    }
+  }, [id, navigate]);
+
   const handleIncrement = () => setBidAmount((prev) => Math.min(prev + 5, maxBid));
   const handleDecrement = () => setBidAmount((prev) => Math.max(prev - 5, minBid));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-400 flex items-center justify-center font-mono">
+        Verificando permisos espectrales...
+      </div>
+    );
+  }
+
+  if (!authorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-6 flex flex-col lg:flex-row gap-8">
