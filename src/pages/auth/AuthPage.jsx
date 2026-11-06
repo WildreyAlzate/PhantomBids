@@ -52,8 +52,9 @@ export function AuthPage() {
 
       } else {
         // Petición real al endpoint de Registro del backend
+        // Mapeamos 'alias' a la propiedad 'username' que requiere Mongoose en la base de datos
         const res = await axios.post(`${API_URL}/api/auth/register`, {
-          username,
+          username: alias,
           email,
           password,
         });
@@ -64,7 +65,7 @@ export function AuthPage() {
           localStorage.setItem("token", token);
         }
 
-        authLogin(res.data.user || { alias, email, role: "user" });
+        authLogin(res.data.user || { username: alias, email, role: "user" });
       }
 
       // Redirigir a las casas de subasta tras iniciar/registrar sesión con éxito
