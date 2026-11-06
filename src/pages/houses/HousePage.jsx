@@ -35,8 +35,22 @@ export function HousesPage() {
     (house.theme && house.theme.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleEnterHouse = (houseId) => {
-    navigate(`/auction/${houseId}`);
+  const handleEnterHouse = async (house) => {
+    if (house.isPrivate) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.get(`${API_URL}/api/houses/${house._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Si el backend responde OK (200), navega a la casa
+        navigate(`/auction/${house._id}`);
+      } catch (err) {
+        // Si el backend devuelve 403 o error, bloquea el paso
+        alert("Acceso denegado: Esta casa es privada y requiere membresía o código de invitación.");
+      }
+    } else {
+      navigate(`/auction/${house._id}`);
+    }
   };
 
   return (
@@ -118,7 +132,7 @@ export function HousesPage() {
                 </div>
 
                 <button 
-                  onClick={() => handleEnterHouse(house._id)}
+                  onClick={() => handleEnterHouse(house)}
                   className="w-full bg-purple-950/80 hover:bg-purple-900 border border-purple-800/50 hover:border-purple-600 text-purple-300 font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm group-hover:shadow-md group-hover:shadow-purple-950/50 cursor-pointer"
                 >
                   <span>Ingresar al Recinto</span>
