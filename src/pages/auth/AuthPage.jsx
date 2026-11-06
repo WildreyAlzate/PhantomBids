@@ -53,7 +53,7 @@ export function AuthPage() {
       } else {
         // Petición real al endpoint de Registro del backend
         const res = await axios.post(`${API_URL}/api/auth/register`, {
-          alias,
+          username,
           email,
           password,
         });
