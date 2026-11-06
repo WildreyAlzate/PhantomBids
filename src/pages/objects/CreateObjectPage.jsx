@@ -33,12 +33,18 @@ export function CreateObjectPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // Cargar las casas disponibles para poder seleccionar una
+  // Cargar las casas disponibles de forma robusta para evitar selectores vacíos
   useEffect(() => {
     const fetchHouses = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/houses`);
-        const houseData = Array.isArray(res.data) ? res.data : res.data.houses || [];
+        console.log("Datos de casas devueltos por la API:", res.data); // Útil para depurar en consola (F12)
+
+        // Verificamos múltiples estructuras posibles de la respuesta del backend
+        const houseData = Array.isArray(res.data) 
+          ? res.data 
+          : res.data.houses || res.data.data || res.data.items || [];
+
         setHouses(houseData);
         if (houseData.length > 0) {
           setFormData((prev) => ({ ...prev, house: houseData[0]._id }));
@@ -134,12 +140,15 @@ export function CreateObjectPage() {
               required
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-purple-500"
             >
-              {houses.length === 0 && <option value="">Cargando casas o no hay casas creadas...</option>}
-              {houses.map((h) => (
-                <option key={h._id} value={h._id}>
-                  {h.name} ({h.theme})
-                </option>
-              ))}
+              {houses.length === 0 ? (
+                <option value="">Cargando casas o no hay casas creadas...</option>
+              ) : (
+                houses.map((h) => (
+                  <option key={h._id} value={h._id}>
+                    {h.name} {h.theme ? `(${h.theme})` : ""}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
